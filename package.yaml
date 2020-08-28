@@ -26,8 +26,10 @@ library:
   source-dirs: src
   dependencies:
   - sdl2
+  - sdl2-ttf
   - linear
   - ghc
+  - text
 
 executables:
   simple:
