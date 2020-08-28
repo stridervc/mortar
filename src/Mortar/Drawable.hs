@@ -111,25 +111,25 @@ vBox ds = Container $ ContainerD
 (<+>) :: Drawable -> Drawable -> Drawable
 (<+>) da@(Widget a) db@(Widget b) = hBox [da,db]
 (<+>) da@(Container a) db@(Widget b)
-  | direction a == Horisontal = Container a { drawables = drawables a ++ [db] }
+  | direction a == Horisontal = hBox (drawables a ++ [db])
   | otherwise                 = hBox [da,db]
 (<+>) da@(Widget a) db@(Container b)
-  | direction b == Horisontal = Container b { drawables = da : drawables b }
+  | direction b == Horisontal = hBox (da : drawables b)
   | otherwise                 = hBox [da,db]
 (<+>) da@(Container a) db@(Container b)
-  | direction a == Horisontal && direction b == Horisontal  = Container a { drawables = drawables a ++ drawables b }
+  | direction a == Horisontal && direction b == Horisontal  = hBox (drawables a ++ drawables b)
   | otherwise                                               = hBox [da,db]
 
 (<=>) :: Drawable -> Drawable -> Drawable
 (<=>) da@(Widget a) db@(Widget b) = vBox [da,db]
 (<=>) da@(Container a) db@(Widget b)
-  | direction a == Vertical   = Container a { drawables = drawables a ++ [db] }
+  | direction a == Vertical   = vBox (drawables a ++ [db])
   | otherwise                 = vBox [da,db]
 (<=>) da@(Widget a) db@(Container b)
-  | direction b == Vertical   = Container b { drawables = da : drawables b }
+  | direction b == Vertical   = vBox (da : drawables b)
   | otherwise                 = vBox [da,db]
 (<=>) da@(Container a) db@(Container b)
-  | direction a == Vertical && direction b == Vertical  = Container a { drawables = drawables a ++ drawables b }
+  | direction a == Vertical && direction b == Vertical  = vBox (drawables a ++ drawables b)
   | otherwise                                           = vBox [da,db]
 
 render :: Renderer -> Drawable -> IO ()
