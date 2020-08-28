@@ -6,7 +6,7 @@ module Mortar.FillWidget
 import Mortar.Drawable
 
 hFill :: Drawable
-hFill = widget (0,Grow) (0,Fixed) (\_ -> return ())
+hFill = widget (return 0,Grow) (return 0,Fixed) (\_ -> return ())
 
 vFill :: Drawable
-vFill = widget (0,Fixed) (0,Grow) (\_ -> return ())
+vFill = widget (return 0,Fixed) (return 0,Grow) (\_ -> return ())

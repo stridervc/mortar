@@ -6,29 +6,31 @@ import SDL
 import SDL.Font
 import Mortar.Drawable
 import Data.Text
+import Foreign.C.Types (CInt(..))
 
-label :: Text -> Drawable
-label t = widget (0,Grow) (70,Fixed) (drawLabel t)
+label :: Font -> Color -> Color -> Text -> Drawable
+label f fg bg t = widget (labelWidth f t,Fixed) (labelHeight f t,Fixed) (drawLabel f fg bg t)
 
-{-
-labelWidth :: Text -> CInt
+labelWidth :: Font -> Text -> IO CInt
+labelWidth f t = do
+  (w,_) <- size f t
+  return $ toEnum w
 
-labelHeight :: Text -> CInt
--}
+labelHeight :: Font -> Text -> IO CInt
+labelHeight f t = do
+  (_,h) <- size f t
+  return $ toEnum h
 
-drawLabel :: Text -> Renderer -> IO ()
-drawLabel t r = do
+drawLabel :: Font -> Color -> Color -> Text -> Renderer -> IO ()
+drawLabel font fg bg t r = do
   viewport <- get $rendererViewport r
   case viewport of
     Just (Rectangle _ (V2 w h)) -> do
       rendererDrawColor r $= V4 0 255 0 255
-      drawLine r (P (V2 0 0)) (P (V2 w h))
 
-      font <- SDL.Font.load "/usr/share/fonts/truetype/roboto/slab/RobotoSlab-Regular.ttf" 70
-      surface <- SDL.Font.solid font (V4 255 255 255 0) t
-      SDL.Font.free font
+      surface <- SDL.Font.shaded font fg bg t
       texture <- createTextureFromSurface r surface
-      
+
       SDL.copy r texture Nothing Nothing
 
       freeSurface surface

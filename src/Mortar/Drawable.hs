@@ -19,7 +19,7 @@ module Mortar.Drawable
 
 import SDL
 import Foreign.C.Types (CInt(..))
-import MonadUtils (foldlM_)
+import Control.Monad (foldM, foldM_)
 
 -- |A Drawable can be drawn to the screen, either a WidgetD or a ContainerD.
 data Drawable     = Widget WidgetD | Container ContainerD
@@ -37,8 +37,8 @@ data WidgetD = WidgetD
   { renderWidget  :: Renderer -> IO ()  -- ^Function that renders the widget
   , wWPolicy      :: GrowthPolicy       -- ^Widget Width 'GrowthPolicy'
   , wHPolicy      :: GrowthPolicy       -- ^Widget Height 'GrowthPolicy'
-  , wWidth        :: Width
-  , wHeigt        :: Height
+  , wWidth        :: IO Width
+  , wHeigt        :: IO Height
   }
 
 -- container drawable
@@ -47,8 +47,8 @@ data ContainerD = ContainerD
   , direction       :: Direction
   , cWPolicy        :: GrowthPolicy
   , cHPolicy        :: GrowthPolicy
-  , cWidth          :: Width
-  , cHeight         :: Height
+  , cWidth          :: IO Width
+  , cHeight         :: IO Height
   }
 
 -- |The 'GrowthPolicy' for the width of a 'Drawable'
@@ -62,16 +62,16 @@ dHPolicy (Widget d)     = wHPolicy d
 dHPolicy (Container d)  = cHPolicy d
 
 -- |The width of the 'Drawable'
-dWidth :: Drawable -> Width
+dWidth :: Drawable -> IO Width
 dWidth (Widget d)     = wWidth d
 dWidth (Container d)  = cWidth d
 
 -- |The height of the 'Drawable'
-dHeight :: Drawable -> Height
+dHeight :: Drawable -> IO Height
 dHeight (Widget d)    = wHeigt d
 dHeight (Container d) = cHeight d
 
-widget :: (Width,GrowthPolicy) -> (Height,GrowthPolicy) -> (Renderer -> IO ()) -> Drawable
+widget :: (IO Width,GrowthPolicy) -> (IO Height,GrowthPolicy) -> (Renderer -> IO ()) -> Drawable
 widget (w,wp) (h,hp) f = Widget $ WidgetD
   { renderWidget  = f
   , wWPolicy      = wp
@@ -86,8 +86,12 @@ hBox ds = Container $ ContainerD
   , direction = Horisontal
   , cWPolicy  = maximum $ map dWPolicy ds
   , cHPolicy  = maximum $ map dHPolicy ds
-  , cWidth    = sum     $ map dWidth ds
-  , cHeight   = maximum $ map dHeight ds
+  , cWidth    = do
+    ws <- mapM dWidth ds
+    return $ sum ws
+  , cHeight   = do
+    hs <- mapM dHeight ds
+    return $ maximum hs
   }
 
 vBox :: [Drawable] -> Drawable
@@ -96,8 +100,12 @@ vBox ds = Container $ ContainerD
   , direction = Vertical
   , cWPolicy  = maximum $ map dWPolicy ds
   , cHPolicy  = maximum $ map dHPolicy ds
-  , cWidth    = maximum $ map dWidth ds
-  , cHeight   = sum     $ map dHeight ds
+  , cWidth    = do
+    ws <- mapM dWidth ds
+    return $ maximum ws
+  , cHeight   = do
+    hs <- mapM dHeight ds
+    return $ sum hs
   }
 
 (<+>) :: Drawable -> Drawable -> Drawable
@@ -132,11 +140,13 @@ render r c@(Container a)
 
 -- render the child of an HBox at (x,y) with size (w,h)
 -- Returns the (x,y) pos where the next child can be rendered
-renderHBoxChild :: Renderer -> (CInt,CInt) -> ((Width,Height), Drawable) -> IO (CInt,CInt)
+renderHBoxChild :: Renderer -> (CInt,CInt) -> ((IO Width,IO Height), Drawable) -> IO (CInt,CInt)
 renderHBoxChild r (x,y) ((w,h),d) = do
-  rendererViewport r $= Just (Rectangle (P (V2 x y)) (V2 w h))
+  w' <- w
+  h' <- h
+  rendererViewport r $= Just (Rectangle (P (V2 x y)) (V2 w' h'))
   render r d
-  return (x+w, y)
+  return (x+w', y)
 
 -- Render a horisontal box and its child widgets
 -- First we ask Fixed size widgets how much space horisontally they need,
@@ -146,35 +156,39 @@ renderHBox r (Container a) = do
   viewport <- get $ rendererViewport r
   case viewport of
     Just (Rectangle (P (V2 x y)) (V2 w h)) -> do
-      let growdsw = (w-fixeddsw) `div` (toEnum (length growds))
-      let dw      = (\d -> if dWPolicy d == Fixed then dWidth d else growdsw)
-      let dh      = (\d -> if dHPolicy d == Fixed then dHeight d else h)
-      let whds    = [((dw d, dh d), d) | d <- ds]
-      foldlM_ (renderHBoxChild r) (x,y) whds
+      fixeddsw' <- mapM dWidth fixedds
+      let fixeddsw  = sum fixeddsw'
+      let growdsw   = (w-fixeddsw) `div` (toEnum (length growds))
+      let dw        = (\d -> if dWPolicy d == Fixed then dWidth d else return growdsw)
+      let dh        = (\d -> if dHPolicy d == Fixed then dHeight d else return h)
+      let whds      = [((dw d, dh d), d) | d <- ds]
+      foldM_ (renderHBoxChild r) (x,y) whds
   return ()
   where ds        = drawables a
-        fixeddsw  = sum $ map dWidth fixedds
         fixedds   = filter (\d -> dWPolicy d == Fixed) ds
         growds    = filter (\d -> dWPolicy d == Grow) ds
 
-renderVBoxChild :: Renderer -> (CInt,CInt) -> ((Width,Height), Drawable) -> IO (CInt,CInt)
+renderVBoxChild :: Renderer -> (CInt,CInt) -> ((IO Width,IO Height), Drawable) -> IO (CInt,CInt)
 renderVBoxChild r (x,y) ((w,h),d) = do
-  rendererViewport r $= Just (Rectangle (P (V2 x y)) (V2 w h))
+  w' <- w
+  h' <- h
+  rendererViewport r $= Just (Rectangle (P (V2 x y)) (V2 w' h'))
   render r d
-  return (x, y+h)
+  return (x, y+h')
 
 renderVBox :: Renderer -> Drawable -> IO ()
 renderVBox r (Container a) = do
   viewport <- get $ rendererViewport r
   case viewport of
     Just (Rectangle (P (V2 x y)) (V2 w h)) -> do
-      let growdsh = (h-fixeddsh) `div` (toEnum (length growds))
-      let dw      = (\d -> if dWPolicy d == Fixed then dWidth d else w)
-      let dh      = (\d -> if dHPolicy d == Fixed then dHeight d else growdsh)
-      let whds    = [((dw d, dh d), d) | d <- ds]
-      foldlM_ (renderVBoxChild r) (x,y) whds
+      fixeddsh' <- mapM dHeight fixedds
+      let fixeddsh  = sum fixeddsh'
+      let growdsh   = (h-fixeddsh) `div` (toEnum (length growds))
+      let dw        = (\d -> if dWPolicy d == Fixed then dWidth d else return w)
+      let dh        = (\d -> if dHPolicy d == Fixed then dHeight d else return growdsh)
+      let whds      = [((dw d, dh d), d) | d <- ds]
+      foldM_ (renderVBoxChild r) (x,y) whds
   return ()
   where ds        = drawables a
-        fixeddsh  = sum $ map dHeight fixedds
         fixedds   = filter (\d -> dHPolicy d == Fixed) ds
         growds    = filter (\d -> dHPolicy d == Grow) ds

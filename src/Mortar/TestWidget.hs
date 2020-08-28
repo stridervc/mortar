@@ -6,7 +6,7 @@ import SDL
 import Mortar.Drawable
 
 testWidget :: Drawable
-testWidget = widget (0,Grow) (0,Grow) drawTestWidget
+testWidget = widget (return 0,Grow) (return 0,Grow) drawTestWidget
 
 drawTestWidget :: Renderer -> IO ()
 drawTestWidget r = do
