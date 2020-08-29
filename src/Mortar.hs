@@ -22,6 +22,7 @@ module Mortar
   , V2 (..)
   , CInt (..)
   , label
+  , image
   ) where
 
 import Mortar.App
@@ -29,6 +30,7 @@ import Mortar.Drawable
 import Mortar.FillWidget
 import Mortar.TestWidget
 import Mortar.Label
+import Mortar.Image
 
 import Linear (V4(..), V2(..))
 import Foreign.C.Types (CInt(..))

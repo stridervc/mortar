@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6246462a6ba9443603ef14cce73b43f90045971292e0a1ae496b97fd5e11e2e8
+-- hash: 2a41e7f6fd2644652f343815292e3e363d810e52198c90c5229f6058f4ccdc12
 
 name:           mortar
 version:        0.1.0.0
@@ -31,6 +31,7 @@ library
       Mortar.App
       Mortar.Drawable
       Mortar.FillWidget
+      Mortar.Image
       Mortar.Label
       Mortar.TestWidget
   other-modules:
@@ -42,6 +43,7 @@ library
     , ghc
     , linear
     , sdl2
+    , sdl2-image
     , sdl2-ttf
     , text
   default-language: Haskell2010
